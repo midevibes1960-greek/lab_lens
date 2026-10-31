@@ -46,6 +46,7 @@ export function LabClient({ meta, videoUrl }: { meta: LabConfig; videoUrl: strin
             experimentId={meta.id}
             defaultConcept={getRealClip(meta.id)?.concept}
             plateDiameterMm={meta.plateDiameterMm}
+            videoLabel={isUpload ? "Your uploaded time-lapse" : "Real footage"}
             onSaved={() => setReloadKey((k) => k + 1)}
           />
         </div>

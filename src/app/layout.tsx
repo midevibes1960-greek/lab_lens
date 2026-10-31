@@ -32,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </Link>
             <nav className="ml-4 hidden items-center gap-1 text-[13px] font-semibold text-stone-600 lg:flex">
               <Link href="/#how" className="rounded-lg px-3 py-1.5 hover:bg-stone-900/5 hover:text-stone-900">How it works</Link>
-              <Link href="/lab/real-tomato" className="rounded-lg px-3 py-1.5 hover:bg-stone-900/5 hover:text-stone-900">See a demo</Link>
+              <Link href="/lab/real-tomato" className="rounded-lg px-3 py-1.5 hover:bg-stone-900/5 hover:text-stone-900">Real footage</Link>
               <Link href="/evaluation" className="rounded-lg px-3 py-1.5 hover:bg-stone-900/5 hover:text-stone-900">How accurate?</Link>
               <Link href="/study" className="rounded-lg px-3 py-1.5 hover:bg-stone-900/5 hover:text-stone-900">Accuracy study</Link>
             </nav>

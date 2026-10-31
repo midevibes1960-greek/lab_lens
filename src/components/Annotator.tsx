@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, MousePointerClick, Save, Trash2, Undo2 } from "lucide-react";
 import { Card, CardHead, Badge } from "./chrome";
 import type { FrameAnnotation, Pt } from "@/lib/accuracy";
+import { seekToVideo, SeekTimeout } from "@/lib/seekVideo";
 
 interface Still { t_s: number; thumb: string }
 interface Score {
@@ -16,15 +17,6 @@ interface Score {
   meanF1: number | null;
   perFrameMape: number | null;
   framesCompared: number;
-}
-
-function seekTo(v: HTMLVideoElement, t: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const to = setTimeout(() => reject(new Error("seek timed out")), 8000);
-    const done = () => { clearTimeout(to); v.removeEventListener("seeked", done); resolve(); };
-    v.addEventListener("seeked", done);
-    v.currentTime = t;
-  });
 }
 
 const pct = (v: number | null) => (v === null || v === undefined ? "—" : `${(v * 100).toFixed(1)}%`);
@@ -75,7 +67,12 @@ export function Annotator({ videoUrl, experimentId, title }: { videoUrl: string;
       const out: Still[] = [];
       for (let i = 0; i < times.length; i++) {
         setBusy(`Capturing frame ${i + 1}/${times.length}…`);
-        await seekTo(v, times[i]);
+        try {
+          await seekToVideo(v, times[i]);
+        } catch (e) {
+          if (!(e instanceof SeekTimeout) || v.readyState < 2) throw e;
+          // capture the nearest displayed frame instead of aborting
+        }
         const vw = v.videoWidth || 640;
         const vh = v.videoHeight || 360;
         const scale = Math.min(1, 768 / vw);

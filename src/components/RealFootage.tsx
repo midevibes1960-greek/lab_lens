@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ScanEye, Loader2, Play, Download } from "lucide-react";
 import { Card, CardHead, Badge } from "./chrome";
 import { linkFrames, countsFromTracks, type FrameBox } from "@/lib/tracking";
+import { seekToVideo, SeekTimeout } from "@/lib/seekVideo";
 import { fitRatePerUnit, median, toCSV, type TrackPoint } from "@/lib/lablens";
 
 interface SamBox extends FrameBox { c?: number }
@@ -85,7 +86,7 @@ async function capture(v: HTMLVideoElement) {
       v.addEventListener("loadeddata", done);
       v.load();
     });
-    if (Number.isFinite(t) && t > 0) await seekTo(v, t).catch(() => {});
+    if (Number.isFinite(t) && t > 0) await seekToVideo(v, t).catch(() => {});
     const retry = drawFrame(v);
     try {
       return { ...retry, imageDataUrl: retry.cv.toDataURL("image/jpeg", 0.85) };
@@ -95,16 +96,7 @@ async function capture(v: HTMLVideoElement) {
   }
 }
 
-function seekTo(v: HTMLVideoElement, t: number): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const to = setTimeout(() => reject(new Error("seek timed out")), 8000);
-    const done = () => { clearTimeout(to); v.removeEventListener("seeked", done); resolve(); };
-    v.addEventListener("seeked", done);
-    v.currentTime = t;
-  });
-}
-
-export function RealFootage({ videoUrl, prompt, experimentId, defaultConcept, plateDiameterMm = 90, onSaved }: { videoUrl: string; prompt: string; experimentId: string; defaultConcept?: string; plateDiameterMm?: number; onSaved?: () => void }) {
+export function RealFootage({ videoUrl, prompt, experimentId, defaultConcept, plateDiameterMm = 90, onSaved, videoLabel = "Your uploaded time-lapse" }: { videoUrl: string; prompt: string; experimentId: string; defaultConcept?: string; plateDiameterMm?: number; onSaved?: () => void; videoLabel?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [concept, setConcept] = useState(defaultConcept ?? "bacterial colonies");
   const [state, setState] = useState<SingleState>({ kind: "idle" });
@@ -173,9 +165,17 @@ export function RealFootage({ videoUrl, prompt, experimentId, defaultConcept, pl
       const framesBoxes: FrameBox[][] = [];
       const quality: QualityRow[] = [];
       let capW = 768;
+      let seekNotes = 0;
       for (let i = 0; i < times.length; i++) {
         setRunning(`Frame ${i + 1}/${times.length} — asking SAM…`);
-        await seekTo(v, times[i]);
+        try {
+          await seekToVideo(v, times[i]);
+        } catch (e) {
+          // One stalled seek must not kill the run: capture the frame
+          // currently displayed and note it. Only abort if nothing is shown.
+          if (e instanceof SeekTimeout && v.readyState >= 2) seekNotes++;
+          else throw e;
+        }
         const { cv, ctx, imageDataUrl } = await capture(v);
         capW = cv.width;
         const q = frameQuality(ctx, cv.width, cv.height);
@@ -217,6 +217,7 @@ export function RealFootage({ videoUrl, prompt, experimentId, defaultConcept, pl
       const j = await res.json();
       if (!j.ok) throw new Error(j.error ?? "could not save analysis");
       onSaved?.();
+      if (seekNotes > 0) setRunError(`Note: ${seekNotes} frame(s) captured at the nearest displayed position after a seek timeout — results are still from your video.`);
       setSavedTracks(tracks);
       setSummary({
         rows: tracks.length,
@@ -243,7 +244,7 @@ export function RealFootage({ videoUrl, prompt, experimentId, defaultConcept, pl
 
   return (
     <Card className="overflow-hidden border-cyan-900/20">
-      <CardHead kicker="your video — real analysis happens here" title="Your uploaded time-lapse" right={badge} />
+      <CardHead kicker="real analysis happens here" title={videoLabel} right={badge} />
       <video ref={videoRef} src={videoUrl} controls playsInline preload="auto" crossOrigin="anonymous" className="block aspect-video w-full bg-black" />
       <div className="flex flex-col gap-2 p-3">
         <label className="text-[12px] font-bold text-stone-500">
@@ -277,7 +278,13 @@ export function RealFootage({ videoUrl, prompt, experimentId, defaultConcept, pl
               {running ?? "▶ Run full-video analysis"}
             </button>
           </div>
-          {runError && <p className="mt-2 rounded-lg border border-rose-900/15 bg-rose-50 p-2 text-[12px] text-rose-900"><b>Analysis stopped:</b> {runError}</p>}
+          {runError && (
+            runError.startsWith("Note:") ? (
+              <p className="mt-2 rounded-lg border border-amber-900/15 bg-amber-50 p-2 text-[12px] text-amber-950">{runError}</p>
+            ) : (
+              <p className="mt-2 rounded-lg border border-rose-900/15 bg-rose-50 p-2 text-[12px] text-rose-900"><b>Analysis stopped:</b> {runError}</p>
+            )
+          )}
           {summary && (
             <div className="mt-2 rounded-lg border border-emerald-900/15 bg-emerald-50 p-2.5 text-[12px] text-emerald-950">
               <b>Real results saved:</b> final count <b>{summary.finalCount}</b> · {summary.tracks} tracks · {summary.rows} rows · median growth {summary.medianRate.toFixed(4)}/s ({summary.calibrated ? "mm² calibrated" : "px, uncalibrated"}). Time is video-seconds.

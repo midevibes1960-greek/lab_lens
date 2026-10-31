@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #fafaf7;
+  --ink: #1c1917;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+html, body {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+body {
+  font-feature-settings: "tnum" 1, "cv05" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lab-grid {
+  background-image:
+    linear-gradient(to right, rgb(0 0 0 / 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(0 0 0 / 0.035) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.mask-glow { filter: drop-shadow(0 0 6px rgb(6 182 212 / 0.55)); }
+
+input[type="range"].scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px; border-radius: 9999px;
+  background: #0c0a09; border: 3px solid #fff;
+  box-shadow: 0 1px 6px rgb(0 0 0 / 0.35);
+  cursor: pointer;
+}
+input[type="range"].scrub {
+  -webkit-appearance: none;
+  height: 6px; border-radius: 9999px;
+  background: linear-gradient(to right, #0c0a09 var(--fill, 30%), #e7e5e4 var(--fill, 30%));
+  outline: none;
+}
+
+.prose-lab p { margin-bottom: 0.65rem; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
